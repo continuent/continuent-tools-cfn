@@ -1,0 +1,58 @@
+"RedshiftCluster": {
+  "Type": "AWS::Redshift::Cluster",
+  "Properties": {
+    "ClusterType": {
+      "Ref": "ClusterType"
+    },
+    "NumberOfNodes": {
+      "Fn::If": [
+        "IsMultiNodeCluster",
+        {
+          "Ref": "NumberOfNodes"
+        },
+        {
+          "Ref": "AWS::NoValue"
+        }
+      ]
+    },
+    "NodeType": { "Ref": "NodeType" },
+    "DBName": { "Ref": "DatabaseName" },
+    "MasterUsername": { "Ref": "MasterUsername" },
+    "MasterUserPassword": { "Ref": "MasterUserPassword" },
+    "ClusterParameterGroupName": { "Ref": "RedshiftClusterParameterGroup" },
+    "VpcSecurityGroupIds": [
+      { "Ref": "EC2SecurityGroup" }
+    ],
+    "ClusterSubnetGroupName": { "Ref": "RedshiftClusterSubnetGroup" }
+  }
+},
+"RedshiftClusterParameterGroup": {
+  "Type": "AWS::Redshift::ClusterParameterGroup",
+  "Properties": {
+    "Description": "Cluster parameter group",
+    "ParameterGroupFamily": "redshift-1.0",
+    "Parameters": [
+      {
+        "ParameterName": "enable_user_activity_logging",
+        "ParameterValue": "true"
+      }
+    ]
+  }
+},
+"RedshiftClusterSubnetGroup": {
+  "Type": "AWS::Redshift::ClusterSubnetGroup",
+  "Properties": {
+    "Description": "Cluster subnet group",
+    "SubnetIds": [
+      { "Ref": "PublicSubnet" },
+      { "Ref": "PublicSubnet2" }
+    ]
+  }
+},
+
+"RedshiftS3Bucket" : {
+  "Type" : "AWS::S3::Bucket",
+  "Properties" : {
+    "AccessControl" : "Private"
+  }
+}

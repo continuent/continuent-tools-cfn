@@ -1,0 +1,123 @@
+"PuppetMaster" : {
+  "Type" : "AWS::EC2::Instance",
+  "Properties" : {
+    "InstanceType" : "t1.micro",
+    "KeyName" : { "Ref" : "KeyName" },
+    "SubnetId" : { "Ref" : "PublicSubnet" },
+    "PrivateIpAddress" : "<%=parameters[:vpc_subnet_prefix]%>.0.2",
+    "SourceDestCheck" : "false",
+    "ImageId" : { "Fn::FindInMap" : [ "VPCNATAMI", { "Ref" : "AWS::Region" }, "AMI" ]},
+    "SecurityGroupIds" : [{ "Ref" : "NATSecurityGroup" }, {"Ref" : "EC2SecurityGroup" }],
+    "UserData"       : { "Fn::Base64" : { "Fn::Join" : ["", [
+      "#!/bin/bash -v\n",
+      "date > /home/ec2-user/starttime\n",		
+			"yum update -y aws-cfn-bootstrap\n",
+			
+			"echo \"<%=parameters[:vpc_subnet_prefix]%>.0.2\tpuppet\n\" >> /etc/hosts\n",
+			
+			"/opt/aws/bin/cfn-init --region ", { "Ref" : "AWS::Region" },
+        " -s ", { "Ref" : "AWS::StackName" }, " -r NATDevice ",
+        " --access-key ", { "Ref" : "CFNKeys" },
+        " --secret-key ", { "Fn::GetAtt" : ["CFNKeys", "SecretAccessKey"]}, 
+        "\n",
+			
+			"/opt/aws/bin/cfn-signal", " -e 0", " '", 
+			  { "Ref" : "NATDeviceWaitHandle" }, "'","\n",
+			
+      "date > /home/ec2-user/stoptime"
+    ]]}}
+  },
+  "Metadata" : {
+  	"AWS::CloudFormation::Init" : {
+  		"config" : {
+  			"packages" : {
+  				"yum" : {
+  					"puppet" : [],
+  					"puppet-server" : [],
+  					"ruby18-devel" : [],
+  					"rubygem18-aws-sdk" : [],
+  					"gcc" : [],
+  					"make" : [],
+  					"rubygems18" : [],
+  					"git" : []
+  				},
+   				"rubygems" : {
+   					"json" : []
+   				}
+   			},
+   			"sources" : {
+   			},
+  			"files" : {
+  				"/etc/yum.repos.d/epel.repo" : {
+  					"source" : "https://s3.amazonaws.com/cloudformation-examples/enable-epel-on-amazon-linux-ami",
+  					"mode" : "000644",
+  					"owner" : "root",
+  					"group" : "root"
+  				},
+   				"/etc/puppet/autosign.conf" : {
+  					"content" : "*\n",
+  					"mode" : "100644",
+  					"owner" : "root",
+  					"group" : "wheel"
+  				},
+  				"/etc/puppet/fileserver.conf" : {
+  					"content" : "[modules]\n\tallow *\n",
+  					"mode" : "100644",
+  					"owner" : "root",
+  					"group" : "wheel"
+  				}, 
+  				"/etc/puppet/puppet.conf" : {
+  					"content" : { "Fn::Join" : ["", [
+  					"[main]\n",
+  					"\tlogdir=/var/log/puppet\n",
+  					"\trundir=/var/run/puppet\n",
+  					"\tssldir=$vardir/ssl\n",
+  					"\tpluginsync=true\n",
+  					"[agent]\n",
+  					"\tclassfile=$vardir/classes.txt\n",
+  					"\tlocalconfig=$vardir/localconfig\n",
+  					"\tcertname=puppet\n"]] },
+  					"mode" : "000644",
+  					"owner" : "root",
+  					"group" : "root"
+  				},
+  				"/etc/puppet/modules/cfn/manifests/init.pp" : {
+  					"content" : "class cfn {}",
+  					"mode" : "100644",
+  					"owner" : "root",
+  					"group" : "wheel"
+  				},
+  				"/etc/puppet/modules/cfn/lib/facter/cfn.rb" : {
+  					"source" : "https://s3.amazonaws.com/cloudformation-examples/cfn-facter-plugin.rb",
+  					"mode" : "100644",
+  					"owner" : "root",
+  					"group" : "wheel"
+  				},
+  				"/etc/puppet/manifests/nodes.pp" : {
+  					"content" : {"Fn::Join" : ["", [
+  					"node default {\n",
+  					"\tinclude cfn\n",
+  					"}\n" ]]},
+  					"mode" : "100644",
+  					"owner" : "root",
+  					"group" : "wheel" 
+  				},
+  				"/etc/puppet/manifests/site.pp" : {
+  					"content" : "import \"nodes\"\n",
+  					"mode" : "100644",
+  					"owner" : "root",
+  					"group" : "wheel" 
+  				}
+  			},
+  			"services" : {
+  				"sysvinit" : { 
+  					"puppetmaster" : {
+  						"enabled" : "true",
+  						"ensureRunning" : "true" 
+  					}
+  				}
+  			}
+  		}
+  	}
+  }
+}

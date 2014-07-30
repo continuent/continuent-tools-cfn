@@ -1,0 +1,170 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+
+  "Description" : "CloudFormation Template to provision a managed instances",
+
+  "Parameters" : {
+    <%=include("CFN/parameters") %>
+    <%=include("EC2/parameters")%>
+    <%=include("Redshift/parameters")%>
+		<%=include("VPC/Public/parameters", false) %>
+  },
+
+  "Mappings" : {
+    <%=include("CFN/mappings") %>
+		<%=include("VPC/mappings", false) %>
+  },
+  
+  "Conditions": {
+    "IsMultiNodeCluster": {
+      "Fn::Equals": [
+        {
+          "Ref": "ClusterType"
+        },
+        "multi-node"
+      ]
+    }
+  },
+
+  "Resources" : {
+    <%=include("CFN/resources") %>
+    "DatabaseServer1" : {
+      "Type" : "AWS::EC2::Instance",
+      "Properties" : {
+        "KeyName" : { "Ref" : "KeyName" },
+        "InstanceType"   : { "Ref" : "DatabaseServerInstanceType" },
+        "ImageId" : { "Fn::FindInMap" : [ "AWSRegionArch2AMI", { "Ref" : "AWS::Region" },
+          { "Fn::FindInMap" : [ "AWSInstanceType2Arch", { "Ref" : "DatabaseServerInstanceType" }, "Arch" ] } ] },
+        "NetworkInterfaces" : [
+          { 
+            "AssociatePublicIpAddress" : "true",
+            "SubnetId" : { "Ref" : "PublicSubnet" },
+            "PrivateIpAddress" : "<%=parameters[:vpc_subnet_prefix]%>.0.201",
+            "DeviceIndex" : "0",
+            "GroupSet" : [ { "Ref" : "EC2SecurityGroup" } ]
+          }
+        ],
+        "UserData"       : { "Fn::Base64" : { "Fn::Join" : ["", [
+          "#!/bin/bash -v\n",
+          "date > /home/ec2-user/starttime\n",
+          "yum update -y aws-cfn-bootstrap\n",
+
+          "hostname db1.<%=parameters[:cluster_name]%>\n",
+
+          "perl -pi -e 's/^Defaults[ ]*requiretty/#Defaults requiretty/' /etc/sudoers\n",
+
+          "yum install -y ruby18 rubygems18 rubygem18-aws-sdk ruby18-devel\n",
+          "alternatives --set ruby /usr/bin/ruby1.8\n",
+          "yum install -y puppet\n",
+
+          "mkdir /etc/puppet/modules\n",
+          "puppet module install continuent/tungsten\n",
+
+          "puppet apply -e \"class { 'tungsten' :",
+          "        installSSHKeys => true,",
+          "        installMysql => true,",
+          "}\"\n",
+          
+          "/opt/aws/bin/cfn-signal", " -e 0", " '", 
+    			  { "Ref" : "DatabaseServer1WaitHandle" }, "'","\n",
+
+          "date > /home/ec2-user/stoptime"
+        ]]}},
+        "Tags" : [{
+    		  "Key" : "Name",
+    		  "Value" : "db1.<%=parameters[:cluster_name]%>"
+    		}],
+    		"IamInstanceProfile": {"Ref": "ReadInstanceProfile"}
+      }
+    },
+    "DatabaseServer1WaitHandle" : {
+      "Type" : "AWS::CloudFormation::WaitConditionHandle"
+    },
+
+    "DatabaseServer1WaitCondition" : {
+      "Type" : "AWS::CloudFormation::WaitCondition",
+      "Properties" : {
+        "Handle" : { "Ref" : "DatabaseServer1WaitHandle" },
+        "Timeout" : "1200"
+      }
+    },
+    "ReplicationServer1" : {
+      "Type" : "AWS::EC2::Instance",
+      "Properties" : {
+        "KeyName" : { "Ref" : "KeyName" },
+        "InstanceType"   : { "Ref" : "DatabaseServerInstanceType" },
+        "ImageId" : { "Fn::FindInMap" : [ "AWSRegionArch2AMI", { "Ref" : "AWS::Region" },
+          { "Fn::FindInMap" : [ "AWSInstanceType2Arch", { "Ref" : "DatabaseServerInstanceType" }, "Arch" ] } ] },
+        "NetworkInterfaces" : [
+          { 
+            "AssociatePublicIpAddress" : "true",
+            "SubnetId" : { "Ref" : "PublicSubnet" },
+            "PrivateIpAddress" : "<%=parameters[:vpc_subnet_prefix]%>.0.202",
+            "DeviceIndex" : "0",
+            "GroupSet" : [ { "Ref" : "EC2SecurityGroup" } ]
+          }
+        ],
+        "UserData"       : { "Fn::Base64" : { "Fn::Join" : ["", [
+          "#!/bin/bash -v\n",
+          "date > /home/ec2-user/starttime\n",
+          "yum update -y aws-cfn-bootstrap\n",
+
+          "hostname rep1.<%=parameters[:cluster_name]%>\n",
+
+          "perl -pi -e 's/^Defaults[ ]*requiretty/#Defaults requiretty/' /etc/sudoers\n",
+
+          "yum install -y ruby18 rubygems18 rubygem18-aws-sdk ruby18-devel\n",
+          "alternatives --set ruby /usr/bin/ruby1.8\n",
+          "yum install -y puppet\n",
+
+          "mkdir /etc/puppet/modules\n",
+          "puppet module install continuent/tungsten\n",
+
+          "puppet apply -e \"class { 'tungsten' :",
+          "        installSSHKeys => true,",
+          "}\"\n",
+          
+          "yum -y install postgresql9\n",
+          "yum -y --enablerepo epel-testing install s3cmd\n",
+          
+          "/opt/aws/bin/cfn-signal", " -e 0", " '", 
+    			  { "Ref" : "ReplicationServer1WaitHandle" }, "'","\n",
+
+          "date > /home/ec2-user/stoptime"
+        ]]}},
+        "Tags" : [{
+    		  "Key" : "Name",
+    		  "Value" : "rep1.<%=parameters[:cluster_name]%>"
+    		}],
+    		"IamInstanceProfile": {"Ref": "RootInstanceProfile"}
+      }
+    },
+    "ReplicationServer1WaitHandle" : {
+      "Type" : "AWS::CloudFormation::WaitConditionHandle"
+    },
+
+    "ReplicationServer1WaitCondition" : {
+      "Type" : "AWS::CloudFormation::WaitCondition",
+      "Properties" : {
+        "Handle" : { "Ref" : "ReplicationServer1WaitHandle" },
+        "Timeout" : "1200"
+      }
+    },
+    <%=include("Redshift/resources") %>
+		<%=include("VPC/Public/resources", false) %>
+  },
+
+  "Outputs" : {
+    "DatabaseServer1" : {
+      "Description" : "Public IP address of the newly created DatabaseServer1 instance",
+      "Value" : { "Fn::GetAtt" : [ "DatabaseServer1", "PublicIp" ] }
+    },
+    "ReplicationServer1" : {
+      "Description" : "Public IP address of the newly created ReplicationServer1 instance",
+      "Value" : { "Fn::GetAtt" : [ "ReplicationServer1", "PublicIp" ] }
+    },
+    <%=include("CFN/outputs")%>
+    <%=include("Redshift/outputs") %>
+    <%=include("VPC/Public/outputs", false) %>
+  }
+}

@@ -1,0 +1,37 @@
+"DatabaseName": {
+  "Description": "The name of the first database to be created when the redshift cluster is created",
+  "Type": "String",
+  "Default": "tungsten_mytor"
+},
+"ClusterType": {
+  "Description": "The type of the cluster",
+  "Type": "String",
+  "Default": "single-node",
+  "AllowedValues": [
+    "single-node",
+    "multi-node"
+  ]
+},
+"NumberOfNodes": {
+  "Description": "The number of compute nodes in the redshift cluster.  When cluster type is specified as: 1) single-node, the NumberOfNodes parameter should be specified as 1, 2) multi-node, the NumberOfNodes parameter should be greater than 1",
+  "Type": "Number",
+  "Default": "1"
+},
+"NodeType": {
+  "Description": "The node type to be provisioned for the redshift cluster",
+  "Type": "String",
+  "Default": "dw2.large"
+},
+"MasterUsername": {
+  "Description": "The user name associated with the master user account for the redshift cluster that is being created",
+  "Type": "String",
+  "Default": "tungsten",
+  "AllowedPattern": "([a-z])([a-z]|[0-9])*",
+  "NoEcho": "true"
+},
+"MasterUserPassword": {
+  "Description": "The password associated with the master user account for the redshift cluster that is being created. ",
+  "Default": "mysecretPassword3",
+  "Type": "String",
+  "NoEcho": "true"
+}

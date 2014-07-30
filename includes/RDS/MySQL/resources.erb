@@ -1,0 +1,16 @@
+"MySQLRDS<%=i%>" : {
+  "Type": "AWS::RDS::DBInstance",
+  "Properties": {
+    "Engine"              : "MySQL",
+    "MultiAZ"             : "false",
+    "MasterUsername"      : "tungsten",
+    "MasterUserPassword"  : "thisismysecret",
+    "DBInstanceClass"     : "db.m1.small",
+    "DBSubnetGroupName"   : { "Ref" : "RDSSubnet" },
+    "VPCSecurityGroups"    : [
+      { "Ref" : "EC2SecurityGroup" },
+      { "Ref" : "RDSSecurityGroup" }
+    ],
+    "AllocatedStorage"    : "10"
+  }
+}

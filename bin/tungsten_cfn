@@ -1,0 +1,367 @@
+#!/usr/bin/env ruby
+# Copyright (C) 2014 Continuent, Inc.
+# 
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License.  You may obtain
+# a copy of the License at
+# 
+#         http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# Initial developer(s): Jeff Mace
+# Contributor(s):
+
+begin
+  require 'rubygems'
+  gem 'continuent-tools-core'
+rescue LoadError
+end
+
+require 'continuent-tools-core'
+require 'erb'
+require 'aws/cloud_formation'
+
+class ContinuentCFN
+  include TungstenScript
+  private
+  
+  def main
+    case command()
+    when "create"
+      create_stack()
+    when "update"
+      update_stack()
+    when "delete"
+      delete_stack()
+    when "ready"
+      rc = ready?()
+      cleanup(rc)
+    when "status"
+      TU.output(get_stack_status())
+    when "outputs"
+      TU.output(JSON.pretty_generate(get_stack_outputs()))
+    when "parameters"
+      TU.output(JSON.pretty_generate(get_stack_parameters()))
+    when "estimate"
+      TU.output(get_stack_estimate_url())
+    when "render"
+      TU.output(render_template())
+    end
+  end
+  
+  def render_template
+    template_contents = File.new("#{File.dirname(__FILE__)}/../templates/#{opt(:template)}.erb").read()
+    renderer = ERB.new(template_contents)
+    
+    renderer.result(binding)
+  end
+  
+  def parameters
+    if @cftp == nil
+      @cftp = CFTemplateParameters.new()
+      @cftp[:cluster_name] = opt(:name)
+      @template_properties.each{
+        |k,v|
+        @cftp[k] = v
+      }
+    end
+    
+    @cftp
+  end
+  
+  def include(template, include_trailing_comma = true, include_parameters = {})
+    if include_trailing_comma.is_a?(Hash)
+      include_parameters = include_trailing_comma
+      include_trailing_comma = true
+    end
+    
+    begin
+      parameters().push_stack()
+      include_parameters.each{
+        |k,v|
+        parameters()[k] = v
+      }
+      
+      TU.debug("Include #{template}")
+      template_contents = File.new("#{File.dirname(__FILE__)}/../includes/#{template}.erb").read()
+      renderer = ERB.new(template_contents)
+      
+      result = renderer.result(binding).chomp().chomp(",").chomp().chomp(",")
+      if include_trailing_comma == true && result.to_s() != ""
+        return result + ","
+      else
+        return result
+      end
+    ensure
+      parameters().pop_stack()
+    end
+  end
+  
+  def stack_exists?(name)
+    cfm = AWS::CloudFormation.new
+    cfm.stacks[name].exists?()
+  end
+  
+  def create_stack
+    if stack_exists?(opt(:name))
+      raise "Unable to create stack '#{opt(:name)}' because it already exists."
+    end
+    
+    cfm = AWS::CloudFormation.new
+    stack = cfm.stacks.create(opt(:name), render_template(), {
+      :capabilities => ["CAPABILITY_IAM"],
+      :parameters => {}
+    })
+  end
+  
+  def update_stack
+    unless stack_exists?(opt(:name))
+      raise "Unable to update stack '#{opt(:name)}' because it does not exist."
+    end
+    
+    cfm = AWS::CloudFormation.new
+    stack = cfm.stacks[opt(:name)]
+    stack.update({
+      :template => render_template(),
+      :capabilities => ["CAPABILITY_IAM"],
+      :parameters => {}
+    })
+  end
+  
+  def ready?
+    begin
+      if get_stack_status() != "CREATE_COMPLETE"
+        return 1
+      else
+        return 0
+      end
+    rescue => e
+      return 2
+    end
+  end
+  
+  def get_stack
+    unless stack_exists?(opt(:name))
+      raise "Unable to update stack '#{opt(:name)}' because it does not exist."
+    end
+    
+    cfm = AWS::CloudFormation.new
+    stack = cfm.stacks[opt(:name)]
+    
+    return stack
+  end
+  
+  def get_stack_status
+    return get_stack().status
+  end
+  
+  def get_stack_outputs
+    r = {}
+    
+    get_stack().outputs().each{
+      |output|
+      r[output.key] = output.value
+    }
+    
+    r
+  end
+  
+  def get_stack_parameters
+    get_stack().parameters()
+  end
+  
+  def show_stack_ssh
+    unless stack_exists?(opt(:name))
+      raise "Unable to update stack '#{opt(:name)}' because it does not exist."
+    end
+    
+    cfm = AWS::CloudFormation.new
+    stack = cfm.stacks[opt(:name)]
+    
+    db = stack.resources["DatabaseServers"]
+    
+    as = AWS::AutoScaling.new()
+    asg = as.groups[db.physical_resource_id]
+    asg.ec2_instances.each{
+      |i|
+      pp i.public_ip_address
+    }
+  end
+  
+  def delete_stack
+    unless stack_exists?(opt(:name))
+      raise "Unable to delete stack '#{opt(:name)}' because it does not exist."
+    end
+    
+    cfm = AWS::CloudFormation.new
+    stack = cfm.stacks[opt(:name)]
+    stack.delete()
+  end
+  
+  def get_stack_estimate_url
+    if stack_exists?(opt(:name))
+      stack = get_stack()
+    else
+    end
+    
+    stack.estimate_template_cost()
+  end
+  
+  def configure
+    super()
+    
+    require_installed_directory?(false)
+    
+    @template_properties = {}
+    
+    add_command(:create, {
+      :help => "Create the stack"
+    })
+    
+    add_command(:update, {
+      :help => "Update an existing stack. Will fail if the stack does not exist"
+    })
+    
+    add_command(:delete, {
+      :help => "Delete an existing stack. Will fail if the stack does not exist."
+    })
+    
+    add_command(:outputs, {
+      :help => "Show outputs for an existing stack. Will fail if the stack does not exist."
+    })
+    
+    add_command(:parameters, {
+      :help => "Display the parameters that were used to define this stack"
+    })
+    
+    add_command(:status, {
+      :help => "Show overall state for an existing stack. Will fail if the stack does not exist."
+    })
+    
+    add_command(:ready, {
+      :help => "Check if the specified stack is ready. 0 = Ready. 1 = Not Ready. 2 = Does Not Exist."
+    })
+    
+    add_command(:estimate, {
+      :help => "Estimate the cost for a stack"
+    })
+    
+    add_command(:render, {
+      :help => "Render the stack template"
+    })
+    
+    add_option(:template, {
+      :on => "--template String",
+      :help => "The stack template to use"
+    })
+    
+    add_option(:name, {
+      :on => "--name String",
+      :help => "Identifier for this stack"
+    })
+    
+    add_option(:property, {
+      :on => "--param String",
+      :help => "Defines template properties"
+    }) {
+      |val|
+      if val.index('=') == nil
+        error "Invalid value #{val} given for '--param'. There should be a key/value pair joined by a single =."
+        return
+      end
+
+      val_parts = val.split("=")
+      key = val_parts.shift()
+      val = val_parts.join("=")
+
+      # Store numeric values as numbers
+      if val.to_i().to_s() == val
+        val = val.to_i()
+      elsif val.to_f().to_s() == val
+        val = val.to_f()
+      end
+      
+      @template_properties[key.to_sym()] = val
+      nil
+    }
+  end
+  
+  def validate
+    super()
+    
+    unless TU.is_valid?()
+      return TU.is_valid?()
+    end
+    
+    if opt(:name).to_s() == ""
+      TU.error("The --name option is required")
+    end
+    
+    case command()
+    when "create"
+      if opt(:template).to_s() == ""
+        TU.error("The --template option is required")
+      end
+    when "update"
+      if opt(:template).to_s() == ""
+        TU.error("The --template option is required")
+      end
+    when "delete"
+    when "status"
+    end
+  end
+  
+  def script_name
+    "tungsten_cfn"
+  end
+  
+  class CFTemplateParameters
+    def initialize
+      @values = {}
+      @values_stack = []
+      
+      @defaults = {}
+    end
+    
+    def [](key)
+      if @values.has_key?(key)
+        @values[key]
+      elsif @defaults.has_key?(key)
+        @defaults[key]
+      else
+        raise "Unable to find a value for '#{key}'"
+      end
+    end
+    
+    def []=(key,value)
+      @values[key]=value
+    end
+    
+    def has_key?(key)
+      @values.has_key?(key) || @defaults.has_key?(key)
+    end
+    
+    def default(key, value)
+      unless @defaults.has_key?(key)
+        @defaults[key] = value
+      end
+    end
+    
+    def pop_stack
+      if @values_stack.size > 0
+        @values = @values_stack.pop()
+      end
+    end
+    
+    def push_stack
+      @values_stack.push(@values.dup())
+    end
+  end
+  
+  self.new().run()
+end

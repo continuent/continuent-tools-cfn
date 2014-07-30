@@ -1,0 +1,32 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+
+  "Description" : "CloudFormation Template to provision a blank instance",
+
+  "Parameters" : {
+    <%=include("CFN/parameters") %>
+		<%=include("VPC/Public/parameters") %>
+		<%=include("VPC/Private/parameters") %>
+		<%=include("EC2/parameters", false) %>
+  },
+
+  "Mappings" : {
+    <%=include("CFN/mappings") %>
+		<%=include("VPC/mappings", false) %>
+  },
+
+  "Resources" : {
+    <%=include("CFN/resources") %>
+    <%=include("EC2/resources") %>
+    <%=include("RDS/resources") %>
+		<%=include("VPC/Public/resources") %>
+		<%=include("VPC/Private/resources", false) %>
+  },
+
+  "Outputs" : {
+    <%=include("EC2/outputs")%>
+    <%=include("CFN/outputs")%>
+    <%=include("VPC/Public/outputs") %>
+		<%=include("VPC/Private/outputs", false) %>
+  }
+}

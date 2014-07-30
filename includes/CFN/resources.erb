@@ -1,0 +1,160 @@
+"CFNInitUser" : { 
+	"Type" : "AWS::IAM::User", 
+	"Properties" : { 
+		"Policies": [{ 
+			"PolicyName": "AccessForCFNInit", 
+			"PolicyDocument" : { 
+				"Statement": [{ 
+					"Effect" : "Allow", 
+					"Action" : "cloudformation:DescribeStackResource", 
+					"Resource" : "*" 
+				}] 
+			} 
+		}] 
+	} 
+}, 
+
+"CFNKeys" : { 
+	"Type" : "AWS::IAM::AccessKey", 
+	"Properties" : { 
+		"UserName" : { "Ref": "CFNInitUser" } 
+	}
+},
+
+"ReadRole": {
+  "Type": "AWS::IAM::Role",
+  "Properties": {
+    "AssumeRolePolicyDocument": {
+      "Version" : "2012-10-17",
+      "Statement": [ {
+        "Effect": "Allow",
+        "Principal": {
+          "Service": [ "ec2.amazonaws.com" ]
+        },
+        "Action": [ "sts:AssumeRole" ]
+      } ]
+    },
+    "Path": "/"
+  }
+},
+
+"ReadRolePolicies": {
+  "Type": "AWS::IAM::Policy",
+  "Properties": {
+    "PolicyName": "read",
+    "PolicyDocument": {
+      "Version" : "2012-10-17",
+      "Statement": [ {
+        "Effect": "Allow",
+        "Action": [
+          "appstream:Get*",
+          "autoscaling:Describe*",
+          "cloudformation:DescribeStacks",
+          "cloudformation:DescribeStackEvents",
+          "cloudformation:DescribeStackResources",
+          "cloudformation:GetTemplate",
+          "cloudformation:List*",
+          "cloudfront:Get*",
+          "cloudfront:List*",
+          "cloudtrail:DescribeTrails",
+          "cloudtrail:GetTrailStatus",
+          "cloudwatch:Describe*",
+          "cloudwatch:Get*",
+          "cloudwatch:List*",
+          "directconnect:Describe*",
+          "dynamodb:GetItem",
+          "dynamodb:BatchGetItem",
+          "dynamodb:Query",
+          "dynamodb:Scan",
+          "dynamodb:DescribeTable",
+          "dynamodb:ListTables",
+          "ec2:Describe*",
+          "elasticache:Describe*",
+          "elasticbeanstalk:Check*",
+          "elasticbeanstalk:Describe*",
+          "elasticbeanstalk:List*",
+          "elasticbeanstalk:RequestEnvironmentInfo",
+          "elasticbeanstalk:RetrieveEnvironmentInfo",
+          "elasticloadbalancing:Describe*",
+          "elastictranscoder:Read*",
+          "elastictranscoder:List*",
+          "iam:List*",
+          "iam:Get*",
+          "opsworks:Describe*",
+          "opsworks:Get*",
+          "route53:Get*",
+          "route53:List*",
+          "redshift:Describe*",
+          "redshift:ViewQueriesInConsole",
+          "rds:Describe*",
+          "rds:ListTagsForResource",
+          "s3:Get*",
+          "s3:List*",
+          "sdb:GetAttributes",
+          "sdb:List*",
+          "sdb:Select*",
+          "ses:Get*",
+          "ses:List*",
+          "sns:Get*",
+          "sns:List*",
+          "sqs:GetQueueAttributes",
+          "sqs:ListQueues",
+          "sqs:ReceiveMessage",
+          "storagegateway:List*",
+          "storagegateway:Describe*"
+        ],
+        "Resource": "*"
+      } ]
+    },
+    "Roles": [ { "Ref": "ReadRole" } ]
+  }
+},
+
+"ReadInstanceProfile": {
+  "Type": "AWS::IAM::InstanceProfile",
+  "Properties": {
+    "Path": "/",
+    "Roles": [ { "Ref": "ReadRole" } ]
+  }
+},
+
+"RootRole": {
+  "Type": "AWS::IAM::Role",
+  "Properties": {
+    "AssumeRolePolicyDocument": {
+      "Version" : "2012-10-17",
+      "Statement": [ {
+        "Effect": "Allow",
+        "Principal": {
+          "Service": [ "ec2.amazonaws.com" ]
+        },
+        "Action": [ "sts:AssumeRole" ]
+      } ]
+    },
+    "Path": "/"
+  }
+},
+
+"RootRolePolicies": {
+  "Type": "AWS::IAM::Policy",
+  "Properties": {
+    "PolicyName": "root",
+    "PolicyDocument": {
+      "Version" : "2012-10-17",
+      "Statement": [ {
+        "Effect": "Allow",
+        "Action": "*",
+        "Resource": "*"
+      } ]
+    },
+    "Roles": [ { "Ref": "RootRole" } ]
+  }
+},
+
+"RootInstanceProfile": {
+  "Type": "AWS::IAM::InstanceProfile",
+  "Properties": {
+    "Path": "/",
+    "Roles": [ { "Ref": "RootRole" } ]
+  }
+},

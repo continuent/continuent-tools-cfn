@@ -1,0 +1,106 @@
+"PrivateRouteTable" : {
+  "Type" : "AWS::EC2::RouteTable",
+  "Properties" : {
+    "VpcId" : { "Ref" : "VPC" }
+  }
+},
+
+"PrivateRoute" : {
+  "Type" : "AWS::EC2::Route",
+  "Properties" : {
+    "RouteTableId" : { "Ref" : "PrivateRouteTable" },
+    "DestinationCidrBlock" : "0.0.0.0/0",
+    "InstanceId" : { "Ref" : "NATDevice" }
+  }
+},
+
+"PrivateSubnet" : {
+  "Type" : "AWS::EC2::Subnet",
+  "Properties" : {
+    "VpcId" : { "Ref" : "VPC" },
+    "AvailabilityZone" : { "Ref" : "VPCPrivateSubnetAZ" },
+    "CidrBlock" : { "Fn::FindInMap" : [ "SubnetConfig", "Private", "CIDR" ]}
+  }
+},
+
+"PrivateSubnetRouteTableAssociation" : {
+  "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+  "Properties" : {
+    "SubnetId" : { "Ref" : "PrivateSubnet" },
+    "RouteTableId" : { "Ref" : "PrivateRouteTable" }
+  }
+},
+
+"PrivateSubnet2" : {
+  "Type" : "AWS::EC2::Subnet",
+  "Properties" : {
+    "VpcId" : { "Ref" : "VPC" },
+    "AvailabilityZone" : { "Ref" : "VPCPrivateSubnet2AZ" },
+    "CidrBlock" : { "Fn::FindInMap" : [ "SubnetConfig", "Private2", "CIDR" ]}
+  }
+},
+
+"PrivateSubnet2RouteTableAssociation" : {
+  "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+  "Properties" : {
+    "SubnetId" : { "Ref" : "PrivateSubnet2" },
+    "RouteTableId" : { "Ref" : "PrivateRouteTable" }
+  }
+},
+
+"NATIPAddress" : {
+  "Type" : "AWS::EC2::EIP",
+  "DependsOn" : "InternetGateway",
+  "Properties" : {
+    "Domain" : "vpc",
+    "InstanceId" : { "Ref" : "NATDevice" }
+  }
+},
+
+"NATDevice" : {
+  "Type" : "AWS::EC2::Instance",
+  "Properties" : {
+    "InstanceType" : "m3.medium",
+    "KeyName" : { "Ref" : "KeyName" },
+    "SubnetId" : { "Ref" : "PublicSubnet" },
+    "PrivateIpAddress" : "<%=parameters[:private_vpc_gateway_ip]%>",
+    "SourceDestCheck" : "false",
+    "ImageId" : { "Fn::FindInMap" : [ "VPCNATAMI", { "Ref" : "AWS::Region" }, "AMI" ]},
+    "SecurityGroupIds" : [{ "Ref" : "NATSecurityGroup" }, {"Ref" : "EC2SecurityGroup" }],
+    "UserData"       : { "Fn::Base64" : { "Fn::Join" : ["", [
+      "#!/bin/bash -v\n",
+      "date > /home/ec2-user/starttime\n",		
+			"yum update -y aws-cfn-bootstrap\n",
+			
+			"/opt/aws/bin/cfn-signal", " -e 0", " '", 
+			  { "Ref" : "NATDeviceWaitHandle" }, "'","\n",
+			
+      "date > /home/ec2-user/stoptime"
+    ]]}}
+  }
+},
+
+"NATSecurityGroup" : {
+  "Type" : "AWS::EC2::SecurityGroup",
+  "Properties" : {
+    "GroupDescription" : "Enable internal access to the NAT device",
+    "VpcId" : { "Ref" : "VPC" },
+    "SecurityGroupIngress" : [
+      {"IpProtocol" : "tcp", "FromPort" : "0", "ToPort" : "65535", "CidrIp" : { "Fn::FindInMap" : [ "SubnetConfig", "Private", "CIDR" ]}},
+      {"IpProtocol" : "tcp", "FromPort" : "0", "ToPort" : "65535", "CidrIp" : { "Fn::FindInMap" : [ "SubnetConfig", "Private2", "CIDR" ]}} ],
+    "SecurityGroupEgress" : [
+       { "IpProtocol" : "tcp", "FromPort" : "0",  "ToPort" : "65535",  "CidrIp" : "0.0.0.0/0"} ]
+  }
+},
+
+"NATDeviceWaitHandle" : {
+  "Type" : "AWS::CloudFormation::WaitConditionHandle"
+},
+
+"NATDeviceWaitCondition" : {
+  "Type" : "AWS::CloudFormation::WaitCondition",
+  "Properties" : {
+    "Handle" : { "Ref" : "NATDeviceWaitHandle" },
+    "Timeout" : "1200"
+  }
+}

@@ -1,0 +1,6 @@
+"VPCId" : { "Value" : { "Ref" : "VPC" }},
+"VPCCIDR" : { "Value" : { "Fn::FindInMap" : [ "SubnetConfig", "VPC", "CIDR" ]}},
+"PublicSubnetId" : { "Value" : { "Ref" : "PublicSubnet" }},
+"PublicSubnetCIDR" : { "Value" : { "Fn::FindInMap" : [ "SubnetConfig", "Public", "CIDR" ]}},
+"PublicSubnet2Id" : { "Value" : { "Ref" : "PublicSubnet2" }},
+"PublicSubnet2CIDR" : { "Value" : { "Fn::FindInMap" : [ "SubnetConfig", "Public2", "CIDR" ]}}

@@ -1,0 +1,9 @@
+"RedshiftEndpointAddress": {
+  "Value": { "Fn::GetAtt": [ "RedshiftCluster", "Endpoint.Address" ] }
+},
+"RedshiftEndpointPort": {
+  "Value": { "Fn::GetAtt": [ "RedshiftCluster", "Endpoint.Port" ] }
+},
+"RedshiftS3Bucket" : {
+  "Value" : { "Ref" : "RedshiftS3Bucket" }
+}

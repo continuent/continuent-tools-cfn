@@ -1,0 +1,25 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+
+  "Description" : "CloudFormation Template to create a Public VPC",
+
+  "Parameters" : {
+    <%=include("CFN/parameters") %>
+		<%=include("VPC/Public/parameters", false) %>
+  },
+
+  "Mappings" : {
+    <%=include("CFN/mappings") %>
+		<%=include("VPC/mappings", false) %>
+  },
+
+  "Resources" : {
+    <%=include("CFN/resources") %>
+		<%=include("VPC/Public/resources", false) %>
+  },
+
+  "Outputs" : {
+    <%=include("CFN/outputs")%>
+    <%=include("VPC/Public/outputs", false) %>
+  }
+}

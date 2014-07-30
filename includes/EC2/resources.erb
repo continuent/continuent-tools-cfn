@@ -1,0 +1,122 @@
+<% if parameters.has_key?(:num_mysql_servers) %>
+<% (1..parameters[:num_mysql_servers]).each do |i| %>
+		"DatabaseServer<%=i%>": {
+		  "Type": "AWS::EC2::Instance",
+		  "Properties": {
+		    "ImageId" : { "Fn::FindInMap" : [ "AWSRegionArch2AMI", { "Ref" : "AWS::Region" },
+                          { "Fn::FindInMap" : [ "AWSInstanceType2Arch", { "Ref" : "DatabaseServerInstanceType" }, "Arch" ] } ] },
+        "InstanceType"   : { "Ref" : "DatabaseServerInstanceType" },
+        "KeyName"        : { "Ref" : "KeyName" },
+        "NetworkInterfaces" : [
+          { "NetworkInterfaceId" : {"Ref" : "DatabaseServer<%=i%>Eth0" }, "DeviceIndex" : "0" }
+        ],
+        "UserData"       : { "Fn::Base64" : { "Fn::Join" : ["", [
+          "#!/bin/bash -v\n",
+		      "date > /home/ec2-user/starttime\n",		
+					"yum update -y aws-cfn-bootstrap\n",
+					
+					"echo \"<%=parameters[:vpc_subnet_prefix]%>.0.10\tpuppet\n\" >> /etc/hosts\n",
+					
+					"/opt/aws/bin/cfn-init --region ", { "Ref" : "AWS::Region" },
+            " -s ", { "Ref" : "AWS::StackName" }, " -r DatabaseServer<%=i%> ",
+            " --access-key ", { "Ref" : "CFNKeys" },
+            " --secret-key ", { "Fn::GetAtt" : ["CFNKeys", "SecretAccessKey"]}, 
+            "\n",
+            
+          "/opt/aws/bin/cfn-signal", " -e 0", " '", 
+    			  { "Ref" : "DatabaseServer<%=i%>WaitHandle" }, "'","\n",
+					
+		      "date > /home/ec2-user/stoptime"
+        ]]}},
+        "Tags" : [{
+  				"Key" : "TungstenDataSource",
+  				"Value" : "true"
+  			},
+  			{
+  			  "Key" : "TungstenClusterName",
+  			  "Value" : "<%=parameters[:cluster_name] %>"
+  			}]
+      },
+      "Metadata" : {
+      	"AWS::CloudFormation::Init" : {
+      		"config" : {
+      			"packages" : {
+      				"yum" : {
+      					"puppet" : [],
+      					"ruby18-devel" : [],
+      					"rubygem18-aws-sdk" : [],
+      					"gcc" : [],
+      					"make" : [],
+      					"rubygems18" : [],
+      					"git" : []
+      				},
+       				"rubygems" : {
+       					"json" : []
+       				}
+       			},
+       			"sources" : {
+       			},
+      			"files" : {
+      				"/etc/yum.repos.d/epel.repo" : {
+      					"source" : "https://s3.amazonaws.com/cloudformation-examples/enable-epel-on-amazon-linux-ami",
+      					"mode" : "000644",
+      					"owner" : "root",
+      					"group" : "root"
+      				},
+      				"/etc/puppet/puppet.conf" : {
+      					"content" : { "Fn::Join" : ["", [
+      					"[main]\n",
+      					"\tlogdir=/var/log/puppet\n",
+      					"\trundir=/var/run/puppet\n",
+      					"\tssldir=$vardir/ssl\n",
+      					"\tpluginsync=true\n",
+      					"[agent]\n",
+      					"\tclassfile=$vardir/classes.txt\n",
+      					"\tlocalconfig=$vardir/localconfig\n",
+      					"\tcertname=databaseserver<%=i%>\n",
+      					"\tserver=puppet\n"]] },
+      					"mode" : "000644",
+      					"owner" : "root",
+      					"group" : "root"
+      				}
+      			},
+      			"services" : {
+      				"sysvinit" : { 
+      					"puppet" : {
+      						"enabled" : "true",
+      						"ensureRunning" : "true" 
+      					}
+      				}
+      			}
+      		}
+      	}
+      }
+		},
+		
+		"DatabaseServer<%=i%>Eth0" : {
+      "Type" : "AWS::EC2::NetworkInterface",
+      "Properties" : {
+        "Description"        : "eth0",
+        "GroupSet"           : [ { "Ref" : "EC2SecurityGroup" } ],
+        "PrivateIpAddresses" : [
+          { "PrivateIpAddress" : "<%=parameters[:vpc_subnet_prefix]%>.1.20<%=i%>", "Primary" : "true" }
+        ],
+        "SourceDestCheck"    : "true",
+        "SubnetId"           : { "Ref" : "PrivateSubnet" },
+        "Tags"               : [ {"Key" : "Name", "Value" : "Interface 0"}, {"Key" : "Interface", "Value" : "eth0"} ]
+      }
+    },
+    
+    "DatabaseServer<%=i%>WaitHandle" : {
+      "Type" : "AWS::CloudFormation::WaitConditionHandle"
+    },
+
+    "DatabaseServer<%=i%>WaitCondition" : {
+      "Type" : "AWS::CloudFormation::WaitCondition",
+      "Properties" : {
+        "Handle" : { "Ref" : "DatabaseServer<%=i%>WaitHandle" },
+        "Timeout" : "1200"
+      }
+    },
+<% end %>
+<% end %>

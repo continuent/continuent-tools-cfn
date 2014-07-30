@@ -1,0 +1,27 @@
+<% if parameters.has_key?(:num_mysql_rds_servers) %>
+    "RDSSubnet" : {
+      "Type" : "AWS::RDS::DBSubnetGroup",
+      "Properties" : {
+        "DBSubnetGroupDescription" : "Subnet for RDS instances",
+        "SubnetIds" : [ 
+          { "Ref" : "PrivateSubnet" }, 
+          { "Ref" : "PrivateSubnet2" } 
+        ]
+      }
+    },
+    "RDSSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Enable MySQL",
+        "VpcId" : { "Ref" : "VPC" },
+        "SecurityGroupIngress" : [
+          {"IpProtocol" : "tcp", "FromPort" : "3306", "ToPort" : "3306", "CidrIp" : { "Fn::FindInMap" : [ "SubnetConfig", "VPC", "CIDR" ]}}
+        ]
+      }
+    },
+<% (1..parameters[:num_mysql_rds_servers]).each do |i| %>
+    <%=include("MySQL.RDS", {
+      :i => i
+    }, true)%>
+<% end %>  
+<% end %>

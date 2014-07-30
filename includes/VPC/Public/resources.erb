@@ -1,0 +1,85 @@
+"VPC" : {
+  "Type" : "AWS::EC2::VPC",
+  "Properties" : {
+    "EnableDnsSupport" : "true",
+    "EnableDnsHostnames" : "true",
+    "CidrBlock" : { "Fn::FindInMap" : [ "SubnetConfig", "VPC", "CIDR" ]}
+  }
+},
+
+"InternetGateway" : {
+  "Type" : "AWS::EC2::InternetGateway",
+  "Properties" : {
+  }
+},
+
+"GatewayToInternet" : {
+   "Type" : "AWS::EC2::VPCGatewayAttachment",
+   "Properties" : {
+     "VpcId" : { "Ref" : "VPC" },
+     "InternetGatewayId" : { "Ref" : "InternetGateway" }
+   }
+},
+
+"PublicRouteTable" : {
+  "Type" : "AWS::EC2::RouteTable",
+  "Properties" : {
+    "VpcId" : { "Ref" : "VPC" }
+  }
+},
+
+"PublicRoute" : {
+  "Type" : "AWS::EC2::Route",
+  "DependsOn" : "GatewayToInternet",
+  "Properties" : {
+    "RouteTableId" : { "Ref" : "PublicRouteTable" },
+    "DestinationCidrBlock" : "0.0.0.0/0",
+    "GatewayId" : { "Ref" : "InternetGateway" }
+  }
+},
+
+"PublicSubnet" : {
+  "Type" : "AWS::EC2::Subnet",
+  "Properties" : {
+    "VpcId" : { "Ref" : "VPC" },
+    "AvailabilityZone" : { "Ref" : "VPCPublicSubnet2AZ" },
+    "CidrBlock" : { "Fn::FindInMap" : [ "SubnetConfig", "Public", "CIDR" ]}
+  }
+},
+
+"PublicSubnetRouteTableAssociation" : {
+  "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+  "Properties" : {
+    "SubnetId" : { "Ref" : "PublicSubnet" },
+    "RouteTableId" : { "Ref" : "PublicRouteTable" }
+  }
+},
+
+"PublicSubnet2" : {
+  "Type" : "AWS::EC2::Subnet",
+  "Properties" : {
+    "VpcId" : { "Ref" : "VPC" },
+    "AvailabilityZone" : { "Ref" : "VPCPublicSubnet2AZ" },
+    "CidrBlock" : { "Fn::FindInMap" : [ "SubnetConfig", "Public2", "CIDR" ]}
+  }
+},
+
+"PublicSubnet2RouteTableAssociation" : {
+  "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+  "Properties" : {
+    "SubnetId" : { "Ref" : "PublicSubnet2" },
+    "RouteTableId" : { "Ref" : "PublicRouteTable" }
+  }
+},
+
+"EC2SecurityGroup" : {
+  "Type" : "AWS::EC2::SecurityGroup",
+  "Properties" : {
+    "GroupDescription" : "Enable SSH",
+    "VpcId" : { "Ref" : "VPC" },
+    "SecurityGroupIngress" : [
+      {"IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" : "0.0.0.0/0"},
+      {"IpProtocol" : "tcp", "FromPort" : "0", "ToPort" : "65535", "CidrIp" : { "Fn::FindInMap" : [ "SubnetConfig", "Public", "CIDR" ]}},
+      {"IpProtocol" : "tcp", "FromPort" : "0", "ToPort" : "65535", "CidrIp" : { "Fn::FindInMap" : [ "SubnetConfig", "Public2", "CIDR" ]}} ]
+  }
+}

@@ -1,0 +1,6 @@
+"GatewayInternalIP" : { "Value" : "<%=parameters[:private_vpc_gateway_ip]%>" },
+"GatewayPublicIP" : { "Value" : { "Ref" : "NATIPAddress" }},
+"PrivateSubnetId" : { "Value" : { "Ref" : "PrivateSubnet" }},
+"PrivateSubnetCIDR" : { "Value" : { "Fn::FindInMap" : [ "SubnetConfig", "Private", "CIDR" ]}},
+"PrivateSubnet2Id" : { "Value" : { "Ref" : "PrivateSubnet2" }},
+"PrivateSubnet2CIDR" : { "Value" : { "Fn::FindInMap" : [ "SubnetConfig", "Private2", "CIDR" ]}}

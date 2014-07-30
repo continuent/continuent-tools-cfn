@@ -1,0 +1,14 @@
+<% parameters.default(:private_vpc_gateway_ip, 
+  parameters[:vpc_subnet_prefix] +".0.4") %>
+"VPCPrivateSubnetAZ" : {
+  "Description" : "Availability Zone for the first private subnet",
+  "Type" : "String",
+  "Default" : "us-east-1b",
+  "ConstraintDescription" : "Must be a valid availability zone in the region"
+},
+"VPCPrivateSubnet2AZ" : {
+  "Description" : "Availability Zone for the second private subnet",
+  "Type" : "String",
+  "Default" : "us-east-1c",
+  "ConstraintDescription" : "Must be a valid availability zone in the region"
+}

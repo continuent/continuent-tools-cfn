@@ -1,0 +1,16 @@
+<% parameters.default(:vpc_subnet_prefix, "10.0") %>
+"SubnetConfig" : {
+  "VPC"       : { "CIDR" : "<%=parameters[:vpc_subnet_prefix]%>.0.0/16" },
+  "Public"    : { "CIDR" : "<%=parameters[:vpc_subnet_prefix]%>.0.0/24" },
+  "Private"   : { "CIDR" : "<%=parameters[:vpc_subnet_prefix]%>.1.0/24" },
+  "Public2"   : { "CIDR" : "<%=parameters[:vpc_subnet_prefix]%>.2.0/24" },
+  "Private2"  : { "CIDR" : "<%=parameters[:vpc_subnet_prefix]%>.3.0/24" }
+},
+"VPCNATAMI" : {
+  "us-east-1"      : { "AMI" : "ami-ad227cc4" },
+  "us-west-1"      : { "AMI" : "ami-d69aad93" },
+  "us-west-2"      : { "AMI" : "ami-f032acc0" },
+  "eu-west-1"      : { "AMI" : "ami-f3e30084" },
+  "ap-southeast-1" : { "AMI" : "ami-f22772a0" },
+  "ap-northeast-1" : { "AMI" : "ami-cd43d9cc" }
+}

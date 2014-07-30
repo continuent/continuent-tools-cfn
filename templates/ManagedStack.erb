@@ -1,0 +1,33 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+
+  "Description" : "CloudFormation Template to provision a managed instances",
+
+  "Parameters" : {
+    <%=include("CFN/parameters") %>
+    <%=include("EC2/parameters")%>
+		<%=include("VPC/Public/parameters", false) %>
+  },
+
+  "Mappings" : {
+    <%=include("CFN/mappings") %>
+		<%=include("VPC/mappings", false) %>
+  },
+
+  "Resources" : {
+    <%=include("CFN/resources") %>
+    <%=include("EC2/managedresources")%>
+		<%=include("VPC/Public/resources", false) %>
+  },
+
+  "Outputs" : {
+    <% (1..parameters[:num_mysql_servers]).each do |i| %>
+    "DatabaseServer<%=i%>" : {
+      "Description" : "Public IP address of the newly created DatabaseServer<%=i%> instance",
+      "Value" : { "Fn::GetAtt" : [ "DatabaseServer<%=i%>", "PublicIp" ] }
+    },
+    <%end%>
+    <%=include("CFN/outputs")%>
+    <%=include("VPC/Public/outputs", false) %>
+  }
+}

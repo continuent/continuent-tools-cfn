@@ -1,0 +1,13 @@
+<% parameters.default(:vpc_subnet_prefix, "10.0") %>
+"VPCPublicSubnetAZ" : {
+  "Description" : "Availability Zone for the first public subnet",
+  "Type" : "String",
+  "Default" : "us-east-1b",
+  "ConstraintDescription" : "Must be a valid availability zone in the region"
+},
+"VPCPublicSubnet2AZ" : {
+  "Description" : "Availability Zone for the second public subnet",
+  "Type" : "String",
+  "Default" : "us-east-1c",
+  "ConstraintDescription" : "Must be a valid availability zone in the region"
+}
